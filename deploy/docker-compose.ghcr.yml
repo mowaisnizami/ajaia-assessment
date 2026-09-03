@@ -1,0 +1,48 @@
+services:
+  api:
+    image: ghcr.io/mowaisnizami/ajaia-assessment-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
+      DATABASE_SSL: "false"
+      # Assessment deployment only. Replace with migrations before a production service.
+      DATABASE_SYNCHRONIZE: "true"
+      PORT: "3000"
+      CORS_ORIGIN: ${PUBLIC_ORIGIN}
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      docflow_internal:
+        aliases:
+          - docflow-api
+      nginxproxymanager: {}
+
+  web:
+    image: ghcr.io/mowaisnizami/ajaia-assessment-web:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "80"
+    networks:
+      docflow_internal: {}
+      nginxproxymanager:
+        aliases:
+          - docflow-web
+
+networks:
+  # Keeps Nginx's /api proxy private between the app containers.
+  docflow_internal:
+    internal: true
+  # Existing external Docker network shared by NPM, cloudflared, and PostgreSQL.
+  nginxproxymanager:
+    external: true
+    name: ${NPM_NETWORK:-nginxproxymanager}

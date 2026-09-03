@@ -1,0 +1,16 @@
+packages:
+  - client
+  - server
+allowBuilds:
+  '@parcel/watcher': true
+  esbuild: true
+  lmdb: true
+  msgpackr-extract: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@angular-devkit/architect@0.2102.23'
+  - '@angular-devkit/core@21.2.23'
+  - '@angular-devkit/schematics@21.2.23'
+  - '@angular/build@21.2.23'
+  - '@angular/cli@21.2.23'
+  - '@schematics/angular@21.2.23'

@@ -1,0 +1,179 @@
+<header class="app-header">
+  <button class="brand" type="button" (click)="closeEditor()">
+    <span class="brand-mark" aria-hidden="true">D</span>
+    <span><strong>DocFlow</strong><small>Collaborative workspace</small></span>
+  </button>
+
+  <label class="user-switcher">
+    <span>Working as</span>
+    <select [(ngModel)]="currentUserId" (change)="switchUser()" aria-label="Seeded reviewer identity">
+      @for (user of users; track user.id) {
+        <option [value]="user.id">{{ user.name }}</option>
+      }
+    </select>
+    <small>{{ currentUser?.email || 'Loading reviewer email…' }}</small>
+  </label>
+</header>
+
+<main>
+  @if (error || notice) {
+    <div class="message" [class.message--error]="error">
+      {{ error || notice }}
+    </div>
+  }
+
+  @if (!selected) {
+    <section class="dashboard">
+      <div class="dashboard-heading">
+        <div>
+          <span class="eyebrow">Your workspace</span>
+          <h1>Documents</h1>
+          <p>Create, import, share, export, and track persistent rich-text documents.</p>
+        </div>
+        <div class="primary-actions">
+          <label class="button button--secondary">
+            Import .txt / .md
+            <input type="file" accept=".txt,.md,text/plain,text/markdown" (change)="importFile($event)" />
+          </label>
+          <button class="button" type="button" (click)="createDocument()">New document</button>
+        </div>
+      </div>
+
+      <section class="identity-card">
+        <div>
+          <span class="eyebrow">Active seeded identity</span>
+          <strong>{{ currentUser?.name }}</strong>
+          <small>{{ currentUser?.email }}</small>
+        </div>
+        <p>Switch people above to test ownership, editor access, viewer access, and collaboration presence.</p>
+      </section>
+
+      @if (loading) {
+        <div class="empty-state">Loading workspace…</div>
+      } @else {
+        <section class="document-section">
+          <div class="section-heading"><h2>Owned by me</h2><span>{{ owned.length }}</span></div>
+          <div class="document-grid">
+            @for (document of owned; track document.id) {
+              <button class="document-card" type="button" (click)="openDocument(document.id)">
+                <span class="document-icon">Aa</span>
+                <strong>{{ document.title }}</strong>
+                <small>Updated {{ document.updatedAt | date: 'medium' }}</small>
+                <span class="access access--owner">Owner</span>
+              </button>
+            } @empty {
+              <div class="empty-state">Create your first document to begin.</div>
+            }
+          </div>
+        </section>
+
+        <section class="document-section">
+          <div class="section-heading"><h2>Shared with me</h2><span>{{ shared.length }}</span></div>
+          <div class="document-grid">
+            @for (document of shared; track document.id) {
+              <button class="document-card" type="button" (click)="openDocument(document.id)">
+                <span class="document-icon">Aa</span>
+                <strong>{{ document.title }}</strong>
+                <small>Updated {{ document.updatedAt | date: 'medium' }}</small>
+                <span class="access">{{ document.access }}</span>
+              </button>
+            } @empty {
+              <div class="empty-state">Documents shared with this user appear here.</div>
+            }
+          </div>
+        </section>
+      }
+    </section>
+  } @else {
+    <section class="editor-page">
+      <div class="editor-toolbar">
+        <button class="back-button" type="button" (click)="closeEditor()">← Documents</button>
+        <span class="presence-summary"><i></i> Live collaboration · {{ activeCollaboratorCount }} active</span>
+        <span class="access" [class.access--owner]="selected.access === 'OWNER'">{{ selected.access }}</span>
+        <button class="button button--secondary" type="button" [disabled]="exporting" (click)="exportPdf()">
+          {{ exporting ? 'Preparing PDF…' : 'Export PDF' }}
+        </button>
+        <button class="button" type="button" [disabled]="!canEdit || saving" (click)="saveDocument()">
+          {{ saving ? 'Saving…' : 'Save document' }}
+        </button>
+      </div>
+
+      <div class="editor-layout">
+        <article class="paper">
+          <input
+            class="title-input"
+            [(ngModel)]="editorTitle"
+            [disabled]="!canEdit"
+            maxlength="200"
+            aria-label="Document title"
+          />
+          <quill-editor
+            [(ngModel)]="editorContent"
+            [modules]="editorModules"
+            [readOnly]="!canEdit"
+            theme="snow"
+            placeholder="Start writing…"
+          />
+        </article>
+
+        <aside class="details-panel">
+          <section class="panel-section">
+            <h2>Live collaborators</h2>
+            <p class="panel-copy">Presence refreshes every 12 seconds while this document is open.</p>
+            <div class="collaborator-list">
+              @for (person of collaborators; track person.id) {
+                <div class="collaborator">
+                  <span class="avatar" [class.avatar--online]="person.online">{{ person.name.charAt(0) }}</span>
+                  <span><strong>{{ person.name }} @if (person.id === currentUserId) { (You) }</strong><small>{{ person.email }} · {{ person.role }}</small></span>
+                  <i class="status-dot" [class.status-dot--online]="person.online" [title]="person.online ? 'Recently active' : 'Offline'"></i>
+                </div>
+              } @empty {
+                <small class="muted">Loading collaboration presence…</small>
+              }
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <h2>Document access</h2>
+            @if (selected.access === 'OWNER') {
+              <p class="panel-copy">Share with another seeded reviewer account.</p>
+              <label>Email<input [(ngModel)]="shareEmail" type="email" /></label>
+              <div class="recipient-list">
+                @for (user of shareableUsers; track user.id) {
+                  <button type="button" (click)="setShareRecipient(user.email)">{{ user.name }}<small>{{ user.email }}</small></button>
+                }
+              </div>
+              <label>Permission
+                <select [(ngModel)]="sharePermission">
+                  <option value="VIEWER">Viewer</option>
+                  <option value="EDITOR">Editor</option>
+                </select>
+              </label>
+              <button class="button button--full" type="button" (click)="shareDocument()">Grant access</button>
+            } @else {
+              <p class="panel-copy">This document was shared with <strong>{{ selected.access.toLowerCase() }}</strong> permission. Access is enforced by the API.</p>
+            }
+          </section>
+
+          <section class="panel-section version-history">
+            <h2>Version history</h2>
+            <p class="panel-copy">A version is recorded on creation, import, and each save.</p>
+            @for (version of versions; track version.id) {
+              <div class="version-entry">
+                <span>v{{ version.version }}</span>
+                <div><strong>{{ version.title }}</strong><small>{{ version.editedBy.name }} · {{ version.createdAt | date: 'short' }}</small></div>
+              </div>
+            } @empty {
+              <small class="muted">Loading version history…</small>
+            }
+          </section>
+
+          <section class="panel-section saved-at">
+            <small>Last saved</small>
+            <strong>{{ selected.updatedAt | date: 'medium' }}</strong>
+          </section>
+        </aside>
+      </div>
+    </section>
+  }
+</main>

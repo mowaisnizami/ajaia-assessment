@@ -1,0 +1,17 @@
+{
+  "name": "ajaia-collaborative-editor",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "description": "A focused collaborative document editor built for the Ajaia AI-native full-stack assessment.",
+  "scripts": {
+    "build": "pnpm --filter client build && pnpm --filter server build",
+    "test": "pnpm --filter client test --watch=false && pnpm --filter server test",
+    "dev:client": "pnpm --filter client start",
+    "dev:server": "pnpm --filter server start:dev"
+  },
+  "devDependencies": {
+    "@angular/cli": "^21.2.22",
+    "@nestjs/cli": "^11.0.24"
+  }
+}
